@@ -1,0 +1,42 @@
+apiVersion: vs.axis-dev.io/v1
+kind: AssemblyLine
+metadata:
+  name: staging-deploy
+spec:
+  params:
+    - name: gitRevision
+      type: string
+    - name: version
+      type: string
+  stages:
+    - name: build
+      spec:
+        pipeline: build-image
+        app:      simple-api
+        env:      staging
+        params:
+          - name: gitRevision
+            value: $(inputs.gitRevision)
+          - name: imageTag
+            value: $(inputs.version)
+          - name: env
+            value: staging
+    - name: deploy
+      spec:
+        pipeline: rolling-upgrade
+        app:      simple-api
+        env:      staging
+        params:
+          - name: gitRevision
+            value: $(inputs.gitRevision)
+          - name: image
+            value: $(stages.build.results.image)
+          - name: namespace
+            value: $(params.projectName)-$(params.appName)-staging
+          - name: pulumiStackName
+            value: $(params.projectName)-$(params.appName)-staging
+      runAfter:
+        - build
+  results:
+    - name: imageFullName
+      value: $(stages.build.results.image)

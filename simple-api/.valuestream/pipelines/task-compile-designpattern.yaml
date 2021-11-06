@@ -1,0 +1,40 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: compile-designpattern
+spec:
+  params:
+  - name: appConfigPath
+    description: Path to application config
+  - name: namespace
+    description: Kubernetes Namespace
+  - name: image
+    description: Image name of application
+  workspaces:
+  - name: shared
+  steps:
+  - name: resolve-parameters
+    image: asia.gcr.io/axis-gcp-dev-46876560/config-compiler:2e2e5ff26f8c5b6295a2a705bf3fde92956b89d0
+    args:
+    - params
+    - -o
+    - $(HOME)/params.json
+    - -t
+    - envvar
+    env:
+    - name: SOLARRAY_PARAM_NAMESPACE
+      value: $(params.namespace)
+    - name: SOLARRAY_PARAM_IMAGE
+      value: $(params.image)
+    workingDir: $(workspaces.shared.path)/source
+  - name: compile
+    image: asia.gcr.io/axis-gcp-dev-46876560/config-compiler:2e2e5ff26f8c5b6295a2a705bf3fde92956b89d0
+    args:
+    - manifest
+    - -o
+    - $(workspaces.shared.path)/output/manifests.yaml
+    - -c
+    - $(params.appConfigPath)
+    - -p
+    - $(HOME)/params.json
+    workingDir: $(workspaces.shared.path)/source

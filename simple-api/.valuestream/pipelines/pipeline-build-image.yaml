@@ -1,0 +1,88 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: build-image
+spec:
+  params:
+  - name: gitRepositoryManagerFQDN
+    description: Git host like github.com or bitbucket.org
+  - name: gitOrganization
+    description: Git organization name
+  - name: gitRepository
+    description: Git source code repository name
+  - name: gitRevision
+    description: Git source revision
+  - name: secretNameGitToken
+    description: Git token sercret name
+  - name: env
+    description: Environment name
+  - name: registryName
+    description: Azure Container Registry name
+  - name: pathToContext
+    description:
+      The path to the build working directory
+    default: '.'
+  - name: dockerfile
+    description: The path to the dockerfile to build (relative to the context)
+    default: Dockerfile
+  - name: imageTag
+    description: The tag name of container
+  - name: imageRegistry
+    description: The URL of container registry
+  - name: cacheRegistry
+    description: The URL of container registry to save cache
+  workspaces:
+  - name: shared
+  tasks:
+  - name: git-checkout
+    taskRef:
+      name: git-checkout
+    workspaces:
+    - name: shared
+      workspace: shared
+    params:
+    - name: gitRepositoryManagerFQDN
+      value: $(params.gitRepositoryManagerFQDN)
+    - name: gitOrganization
+      value: $(params.gitOrganization)
+    - name: gitRepository
+      value: $(params.gitRepository)
+    - name: gitRevision
+      value: $(params.gitRevision)
+    - name: secretNameGitToken
+      value: $(params.secretNameGitToken)
+  - name: setup-registry-credential
+    taskRef:
+      name: docker-login-acr
+    workspaces:
+    - name: shared
+      workspace: shared
+    runAfter:
+    - git-checkout
+    params:
+    - name: env
+      value: $(params.env)
+    - name: registryName
+      value: $(params.registryName)
+  - name: build-image
+    taskRef:
+      name: buildkit-registry-cache
+    workspaces:
+    - name: shared
+      workspace: shared
+    runAfter:
+    - setup-registry-credential
+    params:
+    - name: pathToContext
+      value: $(params.pathToContext)
+    - name: dockerfile
+      value: $(params.dockerfile)
+    - name: imageTag
+      value: $(params.imageTag)
+    - name: imageRegistry
+      value: $(params.imageRegistry)
+    - name: cacheRegistry
+      value: $(params.cacheRegistry)
+  results:
+  - name: image
+    value: $(tasks.build-image.results.image)

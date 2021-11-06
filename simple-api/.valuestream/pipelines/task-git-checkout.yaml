@@ -1,0 +1,42 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: git-checkout
+spec:
+  params:
+  - name: gitRepositoryManagerFQDN
+    description: Git host like github.com or bitbucket.org
+  - name: gitOrganization
+    description: Git organization name
+  - name: gitRepository
+    description: Git source code repository name
+  - name: gitRevision
+    description: Git source revision
+  - name: secretNameGitToken
+    description: Git token sercret name
+  workspaces:
+  - name: shared
+  results:
+  - name: gitCommitId
+  steps:
+  - name: git-pull
+    image: docker:git
+    command: ["/usr/bin/git"]
+    args:
+    - clone
+    - --depth=1
+    - https://$(GIT_TOKEN)@$(params.gitRepositoryManagerFQDN)/$(params.gitOrganization)/$(params.gitRepository)
+    - $(workspaces.shared.path)/source
+    env:
+    - name: GIT_TOKEN
+      valueFrom:
+        secretKeyRef:
+          key: token
+          name: $(params.secretNameGitToken)
+  - name: git-checkout
+    image: docker:git
+    script: |
+      git fetch origin $(params.gitRevision)
+      git checkout $(params.gitRevision)
+      git rev-parse $(params.gitRevision) | tr -d '\n' | tee $(results.gitCommidId.path)
+    workingDir: $(workspaces.shared.path)/source
