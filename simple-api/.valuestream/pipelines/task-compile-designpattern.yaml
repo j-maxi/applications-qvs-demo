@@ -14,7 +14,7 @@ spec:
   - name: shared
   steps:
   - name: resolve-parameters
-    image: asia.gcr.io/axis-gcp-dev-46876560/config-compiler:2e2e5ff26f8c5b6295a2a705bf3fde92956b89d0
+    image: asia.gcr.io/axis-gcp-dev-46876560/config-compiler:23d103afd22c90ede4e3647158fe241ba31e1188
     args:
     - params
     - -o
@@ -28,7 +28,7 @@ spec:
       value: $(params.image)
     workingDir: $(workspaces.shared.path)/source
   - name: compile
-    image: asia.gcr.io/axis-gcp-dev-46876560/config-compiler:2e2e5ff26f8c5b6295a2a705bf3fde92956b89d0
+    image: asia.gcr.io/axis-gcp-dev-46876560/config-compiler:23d103afd22c90ede4e3647158fe241ba31e1188
     args:
     - manifest
     - -o
