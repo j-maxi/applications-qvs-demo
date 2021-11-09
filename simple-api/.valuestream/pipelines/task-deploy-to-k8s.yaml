@@ -1,0 +1,46 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: deploy-to-k8s
+spec:
+  params:
+  - name: secretNameKubeconfig
+    description: Kubeconfig secret name
+  - name: pulumiStackName
+    description: Pulumi stack name
+  - name: pulumiStackNameSuffix
+    description: Pulumi stack name suffix
+  - name: qmonusVSEnvType
+    description: Qmonus Value Stream environment type (reserved param)
+  workspaces:
+  - name: shared
+  steps:
+  - name: deploy
+    image: asia.gcr.io/axis-gcp-dev-46876560/deployment-worker:a5bede2c7a1db3f8417123dea5b0514c0ceab2c2
+    args:
+    - --design-pattern=kubernetes
+    - --solarray-env=$(params.qmonusVSEnvType)
+    - --namespace=$(params.pulumiStackName)
+    - --app-version=$(params.pulumiStackNameSuffix)
+    - --disabled-stack-validation
+    env:
+    - name: KUBECONFIG
+      value: /secret/kubeconfig
+    - name: CONFIG_PATH
+      value: $(workspaces.shared.path)/output
+    - name: PULUMI_ACCESS_TOKEN
+      valueFrom:
+        secretKeyRef:
+          name: pulumi-secrets
+          key: token
+    volumeMounts:
+    - name: k8s-kubeconfig
+      mountPath: /secret
+    workingDir: /opt
+  volumes:
+  - name: k8s-kubeconfig
+    secret:
+      secretName: $(params.secretNameKubeconfig)
+      items:
+      - key: kubeconfig
+        path: kubeconfig

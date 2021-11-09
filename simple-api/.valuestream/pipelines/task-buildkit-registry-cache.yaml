@@ -1,0 +1,56 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: buildkit-registry-cache
+spec:
+  params:
+  - name: pathToContext
+    description:
+      The path to the build working directory
+    default: '.'
+  - name: dockerfile
+    description: The path to the dockerfile to build (relative to the context)
+    default: Dockerfile
+  - name: imageTag
+    description: The tag name of container
+  - name: imageRegistry
+    description: The URL of container registry
+  - name: cacheRegistry
+    description: The URL of container registry to save cache
+  workspaces:
+  - name: shared
+  results:
+  - name: image
+  steps:
+  - name: build-and-push
+    image: moby/buildkit:v0.9.2
+    securityContext:
+      privileged: true
+    script: |
+      buildctl-daemonless.sh --debug \
+        build \
+        --progress=plain \
+        --frontend=dockerfile.v0 \
+        --opt filename=$(params.dockerfile) \
+        --local context=$(params.pathToContext) \
+        --local dockerfile=$(params.pathToContext) \
+        --output type=image,name=$(params.imageRegistry):$(params.imageTag),push=true \
+        --export-cache type=registry,ref=$(params.cacheRegistry):buildcache \
+        --import-cache type=registry,ref=$(params.cacheRegistry):buildcache \
+        --metadata-file ${HOME}/meta.json
+    env:
+    - name: DOCKER_CONFIG
+      value: $(workspaces.shared.path)/dockerconfig
+    - name: BUILDCTL_CONNECT_RETRIES_MAX
+      value: "20"
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "200m"
+    workingDir: $(workspaces.shared.path)/source
+  - name: resolve-digest
+    image: docker.io/stedolan/jq@sha256:a61ed0bca213081b64be94c5e1b402ea58bc549f457c2682a86704dd55231e09
+    script: |
+      jq -rj '"$(params.imageRegistry):$(params.imageTag)@" + .["containerimage.digest"]' \
+        < ${HOME}/meta.json \
+        | tee $(results.image.path)

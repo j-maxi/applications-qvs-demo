@@ -1,0 +1,81 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: rolling-upgrade
+spec:
+  params:
+  - name: gitRepositoryManagerFQDN
+    description: Git host like github.com or bitbucket.org
+  - name: gitOrganization
+    description: Git organization name
+  - name: gitRepository
+    description: Git source code repository name
+  - name: gitRevision
+    description: Git source revision
+  - name: secretNameGitToken
+    description: Git token sercret name
+  - name: appConfigPath
+    description: Path to application config
+  - name: secretNameKubeconfig
+    description: Kubeconfig secret name
+  - name: namespace
+    description: Kubernetes Namespace
+  - name: image
+    description: Image name of application
+  - name: pulumiStackName
+    description: Stack name
+  - name: qmonusVSEnvType
+    description: Qmonus Value Stream environment type (reserved param)
+    default: dev
+  workspaces:
+  - name: shared
+  tasks:
+  - name: git-checkout
+    taskRef:
+      name: git-checkout
+    workspaces:
+    - name: shared
+      workspace: shared
+    params:
+    - name: gitRepositoryManagerFQDN
+      value: $(params.gitRepositoryManagerFQDN)
+    - name: gitOrganization
+      value: $(params.gitOrganization)
+    - name: gitRepository
+      value: $(params.gitRepository)
+    - name: gitRevision
+      value: $(params.gitRevision)
+    - name: secretNameGitToken
+      value: $(params.secretNameGitToken)
+  - name: compile-designpattern
+    taskRef:
+      name: compile-designpattern
+    workspaces:
+    - name: shared
+      workspace: shared
+    runAfter:
+    - git-checkout
+    params:
+    - name: appConfigPath
+      value: $(params.appConfigPath)
+    - name: namespace
+      value: $(params.namespace)
+    - name: image
+      value: $(params.image)
+  - name: deploy
+    taskRef:
+      name: deploy-to-k8s
+    workspaces:
+    - name: shared
+      workspace: shared
+    runAfter:
+    - compile-designpattern
+    params:
+    - name: secretNameKubeconfig
+      value: $(params.secretNameKubeconfig)
+    - name: pulumiStackName
+      value: $(params.pulumiStackName)
+    - name: pulumiStackNameSuffix
+      value: main
+    - name: qmonusVSEnvType
+      value: $(params.qmonusVSEnvType)

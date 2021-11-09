@@ -1,0 +1,16 @@
+params:
+  - name: namespace
+    type: string
+  - name: image
+    type: string
+
+modules:
+  - name: github.com/qmonus/sample
+    local: 
+      path: . # relative path to config.yaml
+
+designPatterns:
+  - pattern: github.com/qmonus/sample/local
+    params:
+      namespace: $(params.namespace)
+      image:     $(params.image)
