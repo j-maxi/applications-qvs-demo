@@ -1,0 +1,40 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: docker-login-gcr
+spec:
+  params:
+  - name: secretNameServiceAccount
+    description: GCP Service Account secret name
+  - name: deployTargetProject
+    description: GCP Project ID
+  workspaces:
+  - name: shared
+  steps:
+  - name: gcp-login
+    image: google/cloud-sdk:363.0.0-alpine
+    script: |
+      #!/usr/bin/env bash
+      gcloud auth activate-service-account --key-file=${GOOGLE_APPLICATION_CREDENTIALS} --project=$(params.deployTargetProject) &&
+      gcloud auth print-access-token > .gcr-cred.txt
+    env:
+    - name: GOOGLE_APPLICATION_CREDENTIALS
+      value: /secret/account.json
+    volumeMounts:
+    - name: gcp-secret
+      mountPath: /secret
+      readOnly: true
+  - name: docker-login
+    image: docker
+    command:
+    - /bin/sh
+    - -c
+    args:
+    - docker --config=$(workspaces.shared.path)/dockerconfig login -u oauth2accesstoken -p "$(cat .gcr-cred.txt)" https://asia-northeast1-docker.pkg.dev
+  volumes:
+  - name: gcp-secret
+    secret:
+      secretName: $(params.secretNameServiceAccount)
+      items:
+      - key: serviceaccount
+        path: account.json
