@@ -11,7 +11,7 @@ spec:
   stages:
     - name: build
       spec:
-        pipeline: build-image
+        pipeline: build-image-azure
         app:      simple-api
         env:      staging
         params:
@@ -19,11 +19,9 @@ spec:
             value: $(inputs.gitRevision)
           - name: imageTag
             value: $(inputs.version)
-          - name: env
-            value: staging
     - name: deploy
       spec:
-        pipeline: rolling-upgrade
+        pipeline: rolling-upgrade-simple-api
         app:      simple-api
         env:      staging
         params:

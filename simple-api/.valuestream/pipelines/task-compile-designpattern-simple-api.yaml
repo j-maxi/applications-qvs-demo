@@ -1,7 +1,7 @@
 apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
-  name: compile-designpattern
+  name: compile-designpattern-simple-api
 spec:
   params:
   - name: appConfigPath
