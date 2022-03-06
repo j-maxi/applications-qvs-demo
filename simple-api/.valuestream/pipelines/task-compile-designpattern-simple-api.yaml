@@ -4,37 +4,37 @@ metadata:
   name: compile-designpattern-simple-api
 spec:
   params:
-  - name: appConfigPath
-    description: Path to application config
-  - name: namespace
-    description: Kubernetes Namespace
-  - name: image
-    description: Image name of application
+    - name: pathToSource
+      description: Relative path from source directory
+      default: ""
+    - name: appConfigPath
+      description: Path to application config
+    - name: namespace
+      description: Kubernetes Namespace
+    - name: imageName
+      description: Image name of application
   workspaces:
-  - name: shared
+    - name: shared
   steps:
-  - name: resolve-parameters
-    image: asia.gcr.io/axis-gcp-dev-46876560/config-compiler:23d103afd22c90ede4e3647158fe241ba31e1188
-    args:
-    - params
-    - -o
-    - $(HOME)/params.json
-    - -t
-    - envvar
-    env:
-    - name: SOLARRAY_PARAM_NAMESPACE
-      value: $(params.namespace)
-    - name: SOLARRAY_PARAM_IMAGE
-      value: $(params.image)
-    workingDir: $(workspaces.shared.path)/source
-  - name: compile
-    image: asia.gcr.io/axis-gcp-dev-46876560/config-compiler:23d103afd22c90ede4e3647158fe241ba31e1188
-    args:
-    - manifest
-    - -o
-    - $(workspaces.shared.path)/output/manifests.yaml
-    - -c
-    - $(params.appConfigPath)
-    - -p
-    - $(HOME)/params.json
-    workingDir: $(workspaces.shared.path)/source
+    - name: make-params-json
+      image: python
+      script: |-
+        #!/usr/bin/env python3
+        import json
+        params = []
+        params.append({'name': 'namespace', 'value': '$(params.namespace)'})
+        params.append({'name': 'imageName', 'value': '$(params.imageName)'})
+        print(json.dumps({'params': params}, indent=4))
+        open('$(workspaces.shared.path)/params.json', 'w').write(json.dumps({'params': params}, indent=4))
+      workingDir: $(workspaces.shared.path)/source/$(params.pathToSource)
+    - name: compile
+      image: asia.gcr.io/axis-gcp-dev-46876560/config-compiler:v0.7.0
+      args:
+        - manifest
+        - -o
+        - $(workspaces.shared.path)/manifests/manifests.yaml
+        - -c
+        - $(params.appConfigPath)
+        - -p
+        - $(workspaces.shared.path)/params.json
+      workingDir: $(workspaces.shared.path)/source

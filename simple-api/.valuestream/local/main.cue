@@ -10,11 +10,10 @@ DesignPattern: {
 
 	parameters: {
 		namespace: string
-		image:     string
+		imageName: string
 	}
 
 	resources: app: {
-		namespace:  _namespace
 		deployment: _deployment
 		service:    _service
 	}
@@ -24,7 +23,7 @@ DesignPattern: {
 	}
 	let _container = {
 		name:  _const.#name
-		image: parameters.image
+		image: parameters.imageName
 		ports: [{
 			containerPort: _const.#port
 		}]
@@ -67,12 +66,6 @@ DesignPattern: {
 			}]
 			selector: _selector
 		}
-	}
-
-	_namespace: {
-		apiVersion: "v1"
-		kind:       "Namespace"
-		metadata: name: parameters.namespace
 	}
 
 	// apply namespace

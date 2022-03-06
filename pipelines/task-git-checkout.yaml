@@ -4,74 +4,73 @@ metadata:
   name: git-checkout
 spec:
   params:
-  - name: gitRepositoryManagerFQDN
-    description: Git host like github.com or bitbucket.org
-  - name: gitOrganization
-    description: Git organization name
-  - name: gitRepository
-    description: Git source code repository name
-  - name: gitRevision
-    description: Git source revision
-  - name: secretNameGitToken
-    description: Git token sercret name
-  - default: "true"
-    description: Clean out of the destination directory if it already exists before
-      cloning
-    name: gitRepositoryDeleteExisting
-  - default: ""
-    description: Subdirectory in the source directory to clone Git repository
-    name: gitCheckoutSubDirectory
-    type: string
+    - name: gitOrganization
+      description: Git organization name
+    - name: gitRepository
+      description: Git source code repository name
+    - name: gitRepositoryManagerFQDN
+      description: Git host like github.com or bitbucket.org
+    - name: gitRevision
+      description: Git source revision
+    - name: gitRepositoryDeleteExisting
+      description: Clean out of the destination directory if it already exists before cloning
+      default: "true"
+    - name: gitCheckoutSubDirectory
+      description: Subdirectory in the source directory to clone Git repository
+      default: ""
+    - name: secretNameGitToken
+      description: Git token sercret name
   workspaces:
-  - name: shared
+    - name: shared
   results:
-  - description: Git commit ID that was checked out by this Task
-    name: gitCommitId
-  - description: The directory that was cloned repository by this Task
-    name: gitCheckoutDirectory
+    - name: gitCommitId
+      description: Git commit ID that was checked out by this Task
+    - name: gitCheckoutDirectory
+      description: The directory that was cloned repository by this Task
   steps:
-  - env:
-    - name: GIT_REPO_DELETE_EXISTING
-      value: $(params.gitRepositoryDeleteExisting)
-    - name: GIT_CHECKOUT_DIR
-      value: $(workspaces.shared.path)/source/$(params.gitCheckoutSubDirectory)
-    image: docker:git
-    name: clean-dir
-    resources: {}
-    script: |
-      if [ "${GIT_REPO_DELETE_EXISTING}" = "true" ]; then
-        if [ -d "${GIT_CHECKOUT_DIR}" ]; then
-          # Delete non-hidden files and directories
-          rm -rf "${GIT_CHECKOUT_DIR:?}"/*
-          # Delete files and directories starting with . but excluding ..
-          rm -rf "${GIT_CHECKOUT_DIR}"/.[!.]*
-          # Delete files and directories starting with .. plus any other character
-          rm -rf "${GIT_CHECKOUT_DIR}"/..?*
+    - name: clean-dir
+      image: docker:git
+      env:
+        - name: GIT_REPO_DELETE_EXISTING
+          value: $(params.gitRepositoryDeleteExisting)
+        - name: GIT_CHECKOUT_DIR
+          value: $(workspaces.shared.path)/source/$(params.gitCheckoutSubDirectory)
+      script: |
+        if [ "${GIT_REPO_DELETE_EXISTING}" = "true" ]; then
+          if [ -d "${GIT_CHECKOUT_DIR}" ]; then
+            # Delete non-hidden files and directories
+            rm -rf "${GIT_CHECKOUT_DIR:?}"/*
+            # Delete files and directories starting with . but excluding ..
+            rm -rf "${GIT_CHECKOUT_DIR}"/.[!.]*
+            # Delete files and directories starting with .. plus any other character
+            rm -rf "${GIT_CHECKOUT_DIR}"/..?*
+          fi
         fi
-      fi
-  - name: git-pull
-    image: docker:git
-    command: ["/usr/bin/git"]
-    args:
-    - clone
-    - https://$(GIT_TOKEN)@$(params.gitRepositoryManagerFQDN)/$(params.gitOrganization)/$(params.gitRepository)
-    - $(GIT_CHECKOUT_DIR)
-    env:
-    - name: GIT_TOKEN
-      valueFrom:
-        secretKeyRef:
-          key: token
-          name: $(params.secretNameGitToken)
-    - name: GIT_CHECKOUT_DIR
-      value: $(workspaces.shared.path)/source/$(params.gitCheckoutSubDirectory)
-  - name: git-checkout
-    image: docker:git
-    script: |
-      cd ${GIT_CHECKOUT_DIR}
-      git fetch origin $(params.gitRevision)
-      git checkout $(params.gitRevision)
-      git rev-parse $(params.gitRevision) | tr -d '\n' | tee $(results.gitCommidId.path)
-    workingDir: $(workspaces.shared.path)/source
-    env:
-    - name: GIT_CHECKOUT_DIR
-      value: $(workspaces.shared.path)/source/$(params.gitCheckoutSubDirectory)
+    - name: git-clone
+      image: docker:git
+      env:
+        - name: GIT_TOKEN
+          valueFrom:
+            secretKeyRef:
+              key: token
+              name: $(params.secretNameGitToken)
+        - name: GIT_CHECKOUT_DIR
+          value: $(workspaces.shared.path)/source/$(params.gitCheckoutSubDirectory)
+      args:
+        - clone
+        - https://$(GIT_TOKEN)@$(params.gitRepositoryManagerFQDN)/$(params.gitOrganization)/$(params.gitRepository)
+        - $(GIT_CHECKOUT_DIR)
+      command:
+        - /usr/bin/git
+    - name: git-checkout
+      image: docker:git
+      script: |
+        cd ${GIT_CHECKOUT_DIR}
+        git fetch origin $(params.gitRevision)
+        git checkout $(params.gitRevision)
+        git rev-parse $(params.gitRevision) | tr -d '\n' | tee $(results.gitCommitId.path)
+        echo ""
+        echo -n ${GIT_CHECKOUT_DIR} | tee $(results.gitCheckoutDirectory.path)
+      env:
+        - name: GIT_CHECKOUT_DIR
+          value: $(workspaces.shared.path)/source/$(params.gitCheckoutSubDirectory)
