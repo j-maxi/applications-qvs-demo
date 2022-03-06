@@ -1,7 +1,7 @@
 params:
   - name: namespace
     type: string
-  - name: image
+  - name: imageName
     type: string
 
 modules:
@@ -13,4 +13,4 @@ designPatterns:
   - pattern: github.com/qmonus/sample/local
     params:
       namespace: $(params.namespace)
-      image:     $(params.image)
+      imageName:     $(params.imageName)

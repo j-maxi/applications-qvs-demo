@@ -1,0 +1,22 @@
+apiVersion: vs.axis-dev.io/v1
+kind: AssemblyLine
+metadata:
+  name: staging-deploy
+spec:
+  params:
+    - name: gitRevision
+      type: string
+    - name: imageName
+      type: string
+  stages:
+    - name: deploy
+      spec:
+        pipeline: rolling-upgrade-simple-api
+        deployment:
+          app: simple-api
+          name: staging
+        params:
+          - name: gitRevision
+            value: $(inputs.gitRevision)
+          - name: imageName
+            value: $(inputs.imageName)

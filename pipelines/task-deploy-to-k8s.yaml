@@ -4,43 +4,84 @@ metadata:
   name: deploy-to-k8s
 spec:
   params:
-  - name: secretNameKubeconfig
-    description: Kubeconfig secret name
-  - name: pulumiStackName
-    description: Pulumi stack name
-  - name: pulumiStackNameSuffix
-    description: Pulumi stack name suffix
-  - name: qmonusVSEnvType
-    description: Qmonus Value Stream environment type (reserved param)
+    - name: appName
+      description: Application Name of QmonusVS
+    - name: deployName
+      description: Deployment Name of QmonusVS
+    - name: deployStateName
+      description: Used as pulumi-stack name suffix
+      default: main
+    - name: secretNameKubeconfig
+      description: The secret name of Kubeconfig
   workspaces:
-  - name: shared
+    - name: shared
   steps:
-  - name: deploy
-    image: asia.gcr.io/axis-gcp-dev-46876560/deployment-worker:a5bede2c7a1db3f8417123dea5b0514c0ceab2c2
-    args:
-    - --design-pattern=kubernetes
-    - --solarray-env=$(params.qmonusVSEnvType)
-    - --namespace=$(params.pulumiStackName)
-    - --app-version=$(params.pulumiStackNameSuffix)
-    - --disabled-stack-validation
-    env:
-    - name: KUBECONFIG
-      value: /secret/kubeconfig
-    - name: CONFIG_PATH
-      value: $(workspaces.shared.path)/output
-    - name: PULUMI_ACCESS_TOKEN
-      valueFrom:
-        secretKeyRef:
-          name: pulumi-secrets
-          key: token
-    volumeMounts:
-    - name: k8s-kubeconfig
-      mountPath: /secret
-    workingDir: /opt
+    - name: download-state
+      image: google/cloud-sdk:365.0.1-slim@sha256:2575543b18e06671eac29aae28741128acfd0e4376257f3f1246d97d00059dcb
+      script: |
+        #!/usr/bin/env bash
+        set -o nounset
+        set -o xtrace
+        set -o pipefail
+
+        mkdir -p '$(workspaces.shared.path)/pulumi/$(params.appName)-$(params.deployName)-$(params.deployStateName)'
+        cd '$(workspaces.shared.path)/pulumi/$(params.appName)-$(params.deployName)-$(params.deployStateName)'
+        if [[ -d .pulumi ]]; then
+          exit 0
+        fi
+        SIGNED_URL=`curl -X POST -fs ${VS_API_ENDPOINT}'/apis/v1/projects/$(context.taskRun.namespace)/applications/$(params.appName)/deployments/$(params.deployName)/deploy-state/$(params.deployStateName)/action/signed-url-to-get?taskrun_name=$(context.taskRun.name)&taskrun_uid=$(context.taskRun.uid)' | xargs`
+        mkdir -p /tekton/home/pulumi/old
+        curl -f ${SIGNED_URL} -o /tekton/home/pulumi/old/state.tgz
+        if [[ -f /tekton/home/pulumi/old/state.tgz ]]; then
+          tar xzvf /tekton/home/pulumi/old/state.tgz
+        fi
+      env:
+        - name: VS_API_ENDPOINT
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.annotations['vs.axis-dev.io/api-endpoint']
+      workingDir: /opt
+    - name: deploy
+      image: asia.gcr.io/axis-gcp-dev-46876560/deployment-worker:33fa73076eb044803e0afaecf6e16be69a3e9811
+      args:
+        - --design-pattern=kubernetes
+        - --solarray-env=local
+        - --namespace=$(context.taskRun.namespace)-$(params.appName)-$(params.deployName)
+        - --app-version=$(params.deployStateName)
+        - --disabled-stack-validation
+        - --local-state-path=$(workspaces.shared.path)/pulumi/$(params.appName)-$(params.deployName)-$(params.deployStateName)
+      env:
+        - name: KUBECONFIG
+          value: /secret/kubeconfig
+        - name: CONFIG_PATH
+          value: $(workspaces.shared.path)/manifests
+      volumeMounts:
+        - name: user-kubeconfig
+          mountPath: /secret
+      workingDir: /opt
+    - name: upload-state
+      image: google/cloud-sdk:365.0.1-slim@sha256:2575543b18e06671eac29aae28741128acfd0e4376257f3f1246d97d00059dcb
+      script: |
+        #!/usr/bin/env bash
+        set -o nounset
+        set -o xtrace
+        set -o pipefail
+
+        cd '$(workspaces.shared.path)/pulumi/$(params.appName)-$(params.deployName)-$(params.deployStateName)'
+        mkdir -p /tekton/home/pulumi/new
+        tar czvf /tekton/home/pulumi/new/state.tgz .pulumi
+        SIGNED_URL=`curl -X POST -fs ${VS_API_ENDPOINT}'/apis/v1/projects/$(context.taskRun.namespace)/applications/$(params.appName)/deployments/$(params.deployName)/deploy-state/$(params.deployStateName)/action/signed-url-to-put?taskrun_name=$(context.taskRun.name)&taskrun_uid=$(context.taskRun.uid)' | xargs`
+        curl -X PUT -i ${SIGNED_URL} --upload-file /tekton/home/pulumi/new/state.tgz
+      env:
+        - name: VS_API_ENDPOINT
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.annotations['vs.axis-dev.io/api-endpoint']
+      workingDir: /opt
   volumes:
-  - name: k8s-kubeconfig
-    secret:
-      secretName: $(params.secretNameKubeconfig)
-      items:
-      - key: kubeconfig
-        path: kubeconfig
+    - name: user-kubeconfig
+      secret:
+        secretName: $(params.secretNameKubeconfig)
+        items:
+          - key: kubeconfig
+            path: kubeconfig
