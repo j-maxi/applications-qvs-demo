@@ -29,12 +29,12 @@ DesignPattern: {
 		}]
 		resources: {
 			requests: {
-				cpu:    "100m"
-				memory: "128Mi"
+				cpu:    "5m"
+				memory: "32Mi"
 			}
 			limits: {
-				cpu:    "200m"
-				memory: "256Mi"
+				cpu:    "10m"
+				memory: "64Mi"
 			}
 		}
 	}
