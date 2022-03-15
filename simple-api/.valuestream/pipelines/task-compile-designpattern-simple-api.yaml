@@ -28,7 +28,7 @@ spec:
         open('$(workspaces.shared.path)/params.json', 'w').write(json.dumps({'params': params}, indent=4))
       workingDir: $(workspaces.shared.path)/source/$(params.pathToSource)
     - name: compile
-      image: asia.gcr.io/axis-gcp-dev-46876560/config-compiler:v0.7.0
+      image: asia-northeast1-docker.pkg.dev/solarray-pro-83383605/valuestream/config-compiler:ac02c4ff81c493a6e16b477eb63ae35e33378989
       args:
         - manifest
         - -o
