@@ -42,7 +42,7 @@ spec:
               fieldPath: metadata.annotations['vs.axis-dev.io/api-endpoint']
       workingDir: /opt
     - name: deploy
-      image: asia.gcr.io/axis-gcp-dev-46876560/deployment-worker:33fa73076eb044803e0afaecf6e16be69a3e9811
+      image: asia-northeast1-docker.pkg.dev/solarray-pro-83383605/valuestream/deployment-worker:5615a942298b49d022dc9f95a52d3144925bbcd4
       args:
         - --design-pattern=kubernetes
         - --solarray-env=local
