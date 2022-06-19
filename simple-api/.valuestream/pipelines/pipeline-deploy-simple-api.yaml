@@ -4,12 +4,8 @@ metadata:
   name: rolling-upgrade-simple-api
 spec:
   params:
-    - name: gitRepositoryManagerFQDN
-      description: Git host like github.com or bitbucket.org
-    - name: gitOrganization
-      description: Git organization name
-    - name: gitRepository
-      description: Git source code repository name
+    - name: gitRepositoryUrl
+      description: Git source code repository url
     - name: gitRevision
       description: Git source revision
     - name: secretNameGitToken
@@ -36,12 +32,8 @@ spec:
         - name: shared
           workspace: shared
       params:
-        - name: gitOrganization
-          value: $(params.gitOrganization)
-        - name: gitRepository
-          value: $(params.gitRepository)
-        - name: gitRepositoryManagerFQDN
-          value: $(params.gitRepositoryManagerFQDN)
+        - name: gitRepositoryUrl
+          value: $(params.gitRepositoryUrl)
         - name: gitRevision
           value: $(params.gitRevision)
         - name: secretNameGitToken
