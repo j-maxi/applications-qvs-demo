@@ -4,12 +4,8 @@ metadata:
   name: git-checkout
 spec:
   params:
-    - name: gitOrganization
-      description: Git organization name
-    - name: gitRepository
-      description: Git source code repository name
-    - name: gitRepositoryManagerFQDN
-      description: Git host like github.com or bitbucket.org
+    - name: gitRepositoryUrl
+      description: Git source code repository url
     - name: gitRevision
       description: Git source revision
     - name: gitRepositoryDeleteExisting
@@ -58,7 +54,7 @@ spec:
           value: $(workspaces.shared.path)/source/$(params.gitCheckoutSubDirectory)
       args:
         - clone
-        - https://$(GIT_TOKEN)@$(params.gitRepositoryManagerFQDN)/$(params.gitOrganization)/$(params.gitRepository)
+        - https://$(GIT_TOKEN)@$(params.gitRepositoryUrl)
         - $(GIT_CHECKOUT_DIR)
       command:
         - /usr/bin/git
